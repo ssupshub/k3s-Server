@@ -1,0 +1,34 @@
+# K3s Agent Configuration for Low-Power Android Devices
+# Optimized for 2GB-4GB RAM devices running on ARM64
+
+# Connect to the server
+# server: https://<SERVER_IP>:6443 # Passed via env var usually, or uncomment and set here
+# token: <YOUR_TOKEN>             # Passed via env var usually
+
+# Node Setup
+node-label:
+  - "device_type=android"
+  - "power_profile=low"
+
+# Kubelet Customizations for Low Resources
+kubelet-arg:
+  # Garbage Collection thresholds - aggressive cleanup on small devices
+  - "image-gc-high-threshold=75"
+  - "image-gc-low-threshold=60"
+  # Eviction thresholds - protect the node from OOM freezing
+  - "eviction-hard=memory.available<200Mi,nodefs.available<5%"
+  - "eviction-soft=memory.available<500Mi,nodefs.available<10%"
+  - "eviction-soft-grace-period=memory.available=1m,nodefs.available=1m"
+  # Reduce status update frequency to save battery/cpu
+  - "node-status-update-frequency=20s"
+
+# Container Runtime
+# Use cgroupfs driver if systemd is not fully available (common in chroot/termux)
+# container-runtime-endpoint: unix:///run/k3s/containerd/containerd.sock # Default
+
+# Network
+# Flannel backend. VXLAN is standard. Host-gw is faster but requires L2 connectivity.
+flannel-backend: vxlan
+
+# Disable components not needed on agent
+# (Most valid args are for server, but we ensure clean agent startup)

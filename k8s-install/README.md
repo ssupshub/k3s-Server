@@ -4,30 +4,26 @@ This folder contains scripts and configurations to set up a Kubernetes (K3s) Mas
 
 ## 1. Install Master Node
 
-You can install the master node on any Linux computer/server (VM, VPS, or bare metal).
-
-### Prerequisites
-
-- Linux running on x86_64 or ARM64.
-- Root access (`sudo`).
-- Static IP is recommended for the server.
+Choose the script that matches your environment.
 
 ### Option A: Standard Install (Recommended)
 
-Uses `containerd` (bundled with K3s). Best for standalone clusters.
+Uses `containerd` (bundled with K3s). Best for standalone clusters and generally more stable for K3s.
 
 ```bash
 cd k8s-install
-chmod +x install-server.sh
-sudo ./install-server.sh --config configs/k3s-server-config.yaml
+chmod +x install-without-docker.sh
+sudo ./install-without-docker.sh
 ```
 
-### Option B: With Docker via `--docker`
+### Option B: Archive/Docker Install
 
-If you already use Docker and want K3s to use it as the runtime.
+Use this if you are already running other containers in Docker and want K3s to manage them, or if you prefer the Docker CLI for debugging.
 
 ```bash
-sudo ./install-server.sh --docker
+cd k8s-install
+chmod +x install-with-docker.sh
+sudo ./install-with-docker.sh
 ```
 
 ## 2. Configuration & Manifests
@@ -58,8 +54,3 @@ On your Android device (inside Termux/Linux Deploy):
     sudo ../scripts/setup-node.sh
     ```
 3.  **THEN** run the join command you got from the master.
-
-## Troubleshooting
-
-- **Firewall**: Ensure port **6443** (API) and **10250** (Metrics) are open on the master.
-- **Network**: If the phone is on WiFi and Master is on LAN, ensure they can ping each other.

@@ -1,0 +1,20 @@
+# K3s Server Configuration
+# Place this at /etc/rancher/k3s/config.yaml or pass to install script
+
+# Cluster Options
+write-kubeconfig-mode: "644" # Allow non-root read access to kubeconfig (optional, for convenience)
+tls-san:
+  - "myserver.local"
+  # Add your public IP here if you have one, e.g.:
+  # - "1.2.3.4"
+
+# Disable components if you want a lighter master (optional)
+# disable:
+#   - "traefik" # Use this if you want to install your own Ingress controller
+
+# Network Options
+# flannel-backend: "vxlan" # Default, good for most setups including phone nodes
+# servicelb-namespace: "kube-system"
+
+# Security
+# token: "my-shared-secret" # Optional: Define a static token instead of auto-generated

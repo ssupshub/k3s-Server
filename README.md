@@ -1,5 +1,7 @@
 # Android K3s Worker Node Project
 
+![Android K3s Node](assets/android_k3s_node.png)
+
 Turn your old Android devices into productive Kubernetes worker nodes using K3s.
 
 ## Project Manifesto
@@ -29,6 +31,8 @@ k3s-server/
 ```
 
 ## User Journey: From Drawer to Node
+
+![User Journey Flow](assets/setup_flow.png)
 
 Follow this guide to convert your device.
 

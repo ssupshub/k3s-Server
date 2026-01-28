@@ -1,9 +1,10 @@
 # K3s Agent Configuration for Low-Power Android Devices
 # Optimized for 2GB-4GB RAM devices running on ARM64
 
-# Connect to the server
-# server: https://<SERVER_IP>:6443 # Passed via env var usually, or uncomment and set here
-# token: <YOUR_TOKEN>             # Passed via env var usually
+# Security Hardening
+# ------------------
+# Protect kernel defaults where possible (though Android kernels may restrict this)
+# protect-kernel-defaults: true
 
 # Node Setup
 node-label:
@@ -12,23 +13,24 @@ node-label:
 
 # Kubelet Customizations for Low Resources
 kubelet-arg:
-  # Garbage Collection thresholds - aggressive cleanup on small devices
+  # Garbage Collection - Aggressive cleanup
   - "image-gc-high-threshold=75"
   - "image-gc-low-threshold=60"
-  # Eviction thresholds - protect the node from OOM freezing
+  # Eviction - Protect node from OOM freezing
   - "eviction-hard=memory.available<200Mi,nodefs.available<5%"
   - "eviction-soft=memory.available<500Mi,nodefs.available<10%"
   - "eviction-soft-grace-period=memory.available=1m,nodefs.available=1m"
-  # Reduce status update frequency to save battery/cpu
+  # Battery Saving: Reduce update frequency
   - "node-status-update-frequency=20s"
 
 # Container Runtime
-# Use cgroupfs driver if systemd is not fully available (common in chroot/termux)
-# container-runtime-endpoint: unix:///run/k3s/containerd/containerd.sock # Default
+# K3s will automatically detect if cgroupfs or systemd is appropriate,
+# but 'cgroupfs' is safer for many Android setups if systemd isn't fully emulated.
+# container-runtime-endpoint: unix:///run/k3s/containerd/containerd.sock
 
 # Network
-# Flannel backend. VXLAN is standard. Host-gw is faster but requires L2 connectivity.
+# Flannel backend: 'vxlan' is the most compatible default.
 flannel-backend: vxlan
 
-# Disable components not needed on agent
-# (Most valid args are for server, but we ensure clean agent startup)
+# Authentication
+# Ensure your kubelet config file is chmod 600 after creation

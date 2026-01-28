@@ -3,6 +3,7 @@ set -e
 
 # Kubernetes (K3s) Master Install Script - STANDARD MODE (Containerd)
 # This script installs K3s using the bundled containerd runtime (Recommended).
+umask 077 # Secure default permissions for created files
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -30,7 +31,8 @@ echo -e "${GREEN}Installation Complete!${NC}"
 echo "---------------------------------------------------"
 if [ -f /var/lib/rancher/k3s/server/node-token ]; then
     TOKEN=$(sudo cat /var/lib/rancher/k3s/server/node-token)
-    echo -e "${BLUE}Node Token:${NC} $TOKEN"
+    echo -e "${BLUE}Node Token:${NC} (Keep this secure!)"
+    echo "$TOKEN"
 else
     echo "Wait a moment for the token to be generated..."
 fi

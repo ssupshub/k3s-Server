@@ -65,7 +65,11 @@ _This script will fix the missing cgroup hierarchies that usually cause K3s to f
 
 ### Phase 4: Ignite the Node
 
-Join the node to your existing K3s cluster. Replace variables with your actual server details.
+Join the node to your existing K3s cluster.
+
+**Important**: You must have a K3s Master running first. See [k8s-install/README.md](k8s-install/README.md) for master setup instructions.
+
+Once you have your `K3S_TOKEN` and `K3S_URL` from the master:
 
 ```bash
 # Set your server details

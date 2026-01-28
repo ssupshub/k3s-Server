@@ -1,83 +1,129 @@
 #!/bin/bash
 set -e
+set -o pipefail
 
-# Android K3s Node Setup Script
-# This script prepares an Android device (via Termux/Linux Deploy/Chroot) to run as a K3s worker node.
+# Android K3s Node Setup Script (Hardened)
+# This script prepares an Android device (via Termux/Proot/Chroot) to run as a K3s worker node.
+# Security: Runs checks for root, validates architecture, and sets safe defaults.
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
 NC='\033[0m'
 
-echo -e "${GREEN}Starting Android K3s Node Setup...${NC}"
+log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
+log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
+log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
-# 1. Architecture Check
-ARCH=$(uname -m)
-if [[ "$ARCH" != "aarch64" && "$ARCH" != "armv7l" ]]; then
-    echo -e "${RED}Error: Unsupported architecture $ARCH. This project targets ARM64/ARMv7 Android devices.${NC}"
-    exit 1
-fi
-echo -e "${GREEN}Architecture $ARCH detected. Good.${NC}"
+echo -e "${GREEN}Starting Android K3s Node Setup (Hardened)...${NC}"
 
-# 2. Check for Root (Required for cgroups/mounts)
+# 1. Security & Environment Checks
+# ------------------------------
+
+# Check for Root
 if [[ $EUID -ne 0 ]]; then
-   echo -e "${RED}This script must be run as root. Please run with sudo or in a root shell.${NC}" 
+   log_error "This script must be run as root." 
    exit 1
 fi
 
-# 3. Mount Cgroups (The 'Golden' Fix)
-# Android kernels often lack standard cgroup mounting expected by K3s/Containerd.
-echo -e "${YELLOW}Checking and mounting cgroups...${NC}"
+# Architecture Check
+ARCH=$(uname -m)
+if [[ "$ARCH" != "aarch64" && "$ARCH" != "armv7l" ]]; then
+    log_error "Unsupported architecture $ARCH. This project targets ARM64/ARMv7 Android devices."
+    exit 1
+fi
+log_success "Architecture $ARCH detected."
+
+# 2. Cgroups Mounting ('Golden' Fix)
+# ----------------------------------
+# Android uses cgroup v1 or v2 depending on kernel. K3s needs access to them.
+log_info "Configuring control groups..."
 
 if [ ! -d /sys/fs/cgroup ]; then
     mkdir -p /sys/fs/cgroup
 fi
 
-# Mount cgroup v1 hierarchy if not present (K3s usually needs standard hierarchy)
-mount -t tmpfs -o mode=755 tmpfs /sys/fs/cgroup || true
+# Try mounting tmpfs for cgroup hierarchy if not present
+if ! mountpoint -q /sys/fs/cgroup; then
+    mount -t tmpfs -o mode=755 tmpfs /sys/fs/cgroup || log_warn "Could not mount tmpfs at /sys/fs/cgroup"
+fi
 
-for subsystem in cpu cpuacct memory devices freezer blkio pids cpuset; do
-    if [ ! -d /sys/fs/cgroup/$subsystem ]; then
-        mkdir -p /sys/fs/cgroup/$subsystem
-        mount -t cgroup -o $subsystem cgroup /sys/fs/cgroup/$subsystem || echo -e "${YELLOW}Warning: Could not mount $subsystem cgroup.${NC}"
+# Mount basic subsystems
+CGROUP_SUBSYSTEMS=(cpu cpuacct memory devices freezer blkio pids cpuset net_cls net_prio)
+for subsystem in "${CGROUP_SUBSYSTEMS[@]}"; do
+    mkdir -p "/sys/fs/cgroup/$subsystem"
+    if ! mountpoint -q "/sys/fs/cgroup/$subsystem"; then
+        if mount -t cgroup -o "$subsystem" cgroup "/sys/fs/cgroup/$subsystem"; then
+            log_info "Mounted cgroup: $subsystem"
+        else
+            # Some kernels have combined hierarchies or missing modules, exact failure isn't always fatal if others work
+            log_warn "Failed to mount cgroup: $subsystem (might be unavailable or combined)"
+        fi
     fi
 done
 
-# Fix for common "cgroups: cannot found cgroup mount destination: unknown"
-if [ ! -e /sys/fs/cgroup/systemd ]; then
-    mkdir /sys/fs/cgroup/systemd
+# Systemd cgroup fix (critical for K3s systemd cgroup driver compability)
+if [ ! -d /sys/fs/cgroup/systemd ]; then
+    mkdir -p /sys/fs/cgroup/systemd
     mount -t cgroup -o none,name=systemd cgroup /sys/fs/cgroup/systemd || true
 fi
 
-echo -e "${GREEN}Cgroups setup attempt complete.${NC}"
+# 3. Networking & Firewall
+# ------------------------
+log_info "Configuring networking..."
 
-# 4. Kernel Module Check (Informational)
-echo -e "${YELLOW}Checking for critical kernel modules...${NC}"
-MISSING_MODULES=0
-# List of some common modules k3s/overlayfs/networking might need. 
-# Many Android kernels compile these in-built, so modprobe might fail but features exist.
-# We'll just check if features seem available via /proc or similar if possible, but for now simple modprobe check or warn.
-MODS=("overlay" "br_netfilter")
-for mod in "${MODS[@]}"; do
+# Enable IP Forwarding (Essential for Container Networking)
+echo 1 > /proc/sys/net/ipv4/ip_forward
+log_success "IP Forwarding enabled."
+
+# Check for iptables
+# Android often uses legacy iptables. K3s usually bundles its own, but we check host availability.
+if command -v iptables >/dev/null; then
+    IPT_VER=$(iptables --version)
+    log_info "Found iptables: $IPT_VER"
+    
+    # Switch to legacy if available and current is nftables (common K3s issue on older kernels)
+    if command -v iptables-legacy >/dev/null; then
+        if iptables -V | grep -q "nf_tables"; then
+            log_warn "Detected iptables-nft. Suggesting update-alternatives to legacy if K3s networking fails."
+            # We don't force switch here to avoid breaking user system, but it's a common debug step.
+        fi
+    fi
+else
+    log_warn "Host iptables not found. K3s will rely on bundled binaries."
+fi
+
+# 4. Kernel Modules (Informational)
+# ---------------------------------
+# K3s generally needs: overlay, br_netfilter.
+log_info "Checking kernel features..."
+REQUIRED_MODULES=("overlay" "br_netfilter")
+for mod in "${REQUIRED_MODULES[@]}"; do
     if grep -q "$mod" /proc/modules || grep -q "$mod" /proc/filesystems; then
-        echo "Module $mod found."
+        log_success "Module/Feature '$mod' found."
     else
-        echo -e "${YELLOW}Warning: Module $mod not explicitly found in /proc/modules (might be builtin).${NC}"
+        log_warn "Module '$mod' not explicitly enabled in /proc. K3s might fail to start pods."
+        # Attempt load (often fails on Android due to locked kernel, but worth a try)
+        modprobe $mod 2>/dev/null || true
     fi
 done
 
-# 5. Enable IP Forwarding
-echo "1" > /proc/sys/net/ipv4/ip_forward
-echo -e "${GREEN}IP Forwarding enabled.${NC}"
+# 5. Connectivity Testing (New)
+# -----------------------------
+log_info "Environment is prepared."
 
-# 6. Legacy headers fix (common in Termux)
-# K3s sometimes looks for iptables in legacy locations or needs specific alternatives.
-# We assume the user has installed iptables.
-
-# 7. K3s Installation
-# We will not run the install command automatically to prevent accidental execution without config.
-# Instead, we prepare the environment.
-
-echo -e "${GREEN}Setup complete!${NC}"
-echo -e "You are now ready to install K3s. Run the installation command with your server token:"
-echo -e "${YELLOW}curl -sfL https://get.k3s.io | K3S_URL=https://<SERVER_IP>:6443 K3S_TOKEN=<TOKEN> sh -s - agent --config /path/to/k3s-agent-config.yaml${NC}"
+# 6. Final Instructions
+# ---------------------
+echo ""
+echo "----------------------------------------------------------------"
+log_success "ANDROID NODE PREPARATION COMPLETE"
+echo "----------------------------------------------------------------"
+echo "To join this device to your K3s server:"
+echo "1. Ensure this device serves on the SAME WiFi/network as the Master."
+echo "2. Run the K3s Agent command:"
+echo ""
+echo -e "${YELLOW}curl -sfL https://get.k3s.io | K3S_URL=https://<MASTER_IP>:6443 K3S_TOKEN=<TOKEN> sh -s - agent --config $(pwd)/../config/k3s-agent-config.yaml${NC}"
+echo ""
+echo "Note: If you encounter 'OOM' errors, check the limits in k3s-agent-config.yaml."

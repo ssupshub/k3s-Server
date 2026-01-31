@@ -1,0 +1,20 @@
+services:
+  demo-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: demo-app:local
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 128M
+    # Note: Healthchecks using 'curl/wget' are not possible here because
+    # the distroless image has no shell or utilities.
+    # In Kubernetes, the Kubelet handles probes externally.
+    # Locally, we rely on the port being open.
+    restart: on-failure

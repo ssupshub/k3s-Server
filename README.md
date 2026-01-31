@@ -3,6 +3,11 @@
 ![Android K3s Node](assets/android_k3s_node.png)
 
 Turn your old Android devices into productive Kubernetes worker nodes using K3s.
+<br>
+
+<div align="center">
+  <img src="assets/k3s_android_cluster_architecture_1769879405348.png" alt="K3s Android Architecture Diagram" width="100%">
+</div>
 
 ## Project Manifesto
 

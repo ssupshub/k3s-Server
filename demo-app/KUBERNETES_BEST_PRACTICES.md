@@ -12,6 +12,10 @@ This guide explains the design choices made in the `demo-app` and how they contr
 - compilers (Go), header files, and build tools remain in the first stage.
 - Result: Significantly smaller image sizes (often < 15MB for Go apps) and reduced attack surface.
 
+<div align="center">
+  <img src="../assets/docker_multistage_build_flow_1769879426427.png" alt="Docker Multi-Stage Build" width="80%">
+</div>
+
 ### Distroless Images
 
 **Why:**
@@ -38,6 +42,10 @@ This guide explains the design choices made in the `demo-app` and how they contr
 - **Readiness (`/readyz`)**: Kubernetes stops sending traffic if this fails. It means "I am busy or starting up, don't talk to me yet."
 - Vital for zero-downtime deployments.
 
+<div align="center">
+  <img src="../assets/k8s_probes_visual_1769879452702.png" alt="Kubernetes Probes Visual" width="80%">
+</div>
+
 ### Resource Limits (Requests vs. Limits)
 
 **Why:**
@@ -45,6 +53,10 @@ This guide explains the design choices made in the `demo-app` and how they contr
 - **Requests**: "I need at least this much to start." Kubernetes uses this for scheduling.
 - **Limits**: "Do not let me use more than this." Kubernetes throttles CPU or kills the pod (OOMKill) if memory is exceeded.
 - **Critical for Android Nodes**: You have limited RAM/CPU. Without limits, one runaway pod can crash the entire phone/node.
+
+<div align="center">
+  <img src="../assets/k8s_resource_limits_visual_1769879473094.png" alt="Kubernetes Resource Limits Visual" width="80%">
+</div>
 
 ### Graceful Shutdown (SIGTERM)
 

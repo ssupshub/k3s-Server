@@ -28,7 +28,23 @@ k3s-server/
 │   └── setup-node.sh         # The 'Golden' setup script to fix cgroups & env
 └── config/
     └── k3s-agent-config.yaml # Low-power optimized agent configuration
+├── demo-app/                 # Production-ready Go reference implementation
+│   ├── Dockerfile            # Multi-stage, distroless, non-root optimized
+│   ├── deployment.yaml       # K8s manifest with probes & limits
+│   └── main.go               # Sample app with graceful shutdown
 ```
+
+## Production Reference: Demo App
+
+The `demo-app/` directory contains a "Gold Standard" reference implementation for running workloads on your new Android nodes. It is critical for these resource-constrained devices that applications are optimized.
+
+**Key Features:**
+
+- **Zero-Fat Images**: Uses multi-stage builds and `distroless` base images to keep containers under 20MB.
+- **Safety First**: Runs as a non-root user to protect the host node.
+- **Resanable Defaults**: Includes Liveness/Readiness probes and Memory/CPU limits to prevent node crashes.
+
+Use this directory as a template for your own applications.
 
 ## User Journey: From Drawer to Node
 

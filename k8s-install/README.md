@@ -36,6 +36,17 @@ kubectl apply -f manifests/example-deployment.yaml
 # Access at http://<SERVER_IP>:30080
 ```
 
+### Validate with Demo App (Recommended)
+
+Once your cluster is running, we recommend deploying the **Production-Ready Demo App** included in this repository. It is optimized for Android nodes.
+
+```bash
+# From the root directory
+kubectl apply -f ../demo-app/deployment.yaml
+```
+
+See [../demo-app/README.md](../demo-app/README.md) for full details.
+
 ## 3. Connecting the Android Worker
 
 After the master is installed, the script will output a command. It looks like this:

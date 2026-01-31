@@ -111,3 +111,14 @@ kubectl get nodes
 ```
 
 You should see your Android device listed as `Ready` with the label `device_type=android`.
+
+### Phase 6: Run the Demo App
+
+Validate your new node's capabilities by deploying the included production-ready reference application.
+
+```bash
+kubectl apply -f demo-app/deployment.yaml
+# Verification
+kubectl get pods -o wide
+# You should see the pod running on your Android node!
+```
